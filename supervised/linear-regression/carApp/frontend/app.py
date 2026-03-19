@@ -1,0 +1,121 @@
+import requests
+import streamlit as st
+from datetime import datetime
+
+st.set_page_config(page_title="Car Price Predictor", page_icon="🚗", layout="centered")
+
+CURRENT_YEAR = datetime.now().year
+
+MODELS = [
+    "C-MAX",
+    "EcoSport",
+    "Edge",
+    "Escort",
+    "Fiesta",
+    "Focus",
+    "Fusion",
+    "Galaxy",
+    "Grand C-MAX",
+    "Grand Tourneo Connect",
+    "KA",
+    "Ka+",
+    "Kuga",
+    "Mondeo",
+    "Mustang",
+    "Puma",
+    "Ranger",
+    "S-MAX",
+    "Streetka",
+    "Tourneo Connect",
+    "Tourneo Custom",
+    "Transit Tourneo",
+]
+
+TRANSMISSIONS = ["Manual", "Semi-Auto"]
+FUEL_TYPES = ["Petrol", "Diesel", "Hybrid", "Electric", "Other"]
+
+st.title("Car Price Prediction Frontend")
+st.caption("Streamlit UI for your FastAPI backend")
+
+with st.sidebar:
+    st.header("Backend Settings")
+    backend_url = st.text_input("Backend Base URL", value="http://localhost:8012")
+
+    if st.button("Check API"):
+        try:
+            root_res = requests.get(f"{backend_url.rstrip('/')}/", timeout=8)
+            root_json = root_res.json()
+            if root_res.status_code == 200:
+                st.success("API reachable")
+            else:
+                st.warning(f"API responded with status {root_res.status_code}")
+            st.json(root_json)
+        except requests.RequestException as err:
+            st.error(f"Could not connect to API: {err}")
+
+st.subheader("Enter Car Details")
+
+with st.form("predict_form"):
+    col1, col2 = st.columns(2)
+
+    with col1:
+        year = st.number_input(
+            "Year", min_value=1901, max_value=CURRENT_YEAR, value=2018, step=1
+        )
+        mileage = st.number_input("Mileage", min_value=0, value=30000, step=1000)
+        tax = st.number_input("Tax", min_value=0, value=150, step=1)
+        mpg = st.number_input("MPG", min_value=0.1, value=50.0, step=0.1, format="%.1f")
+
+    with col2:
+        engine_size = st.number_input(
+            "Engine Size", min_value=0.1, value=1.5, step=0.1, format="%.1f"
+        )
+        model = st.selectbox("Model", options=MODELS, index=5)
+        transmission = st.selectbox("Transmission", options=TRANSMISSIONS, index=0)
+        fuel_type = st.selectbox("Fuel Type", options=FUEL_TYPES, index=0)
+
+    submitted = st.form_submit_button("Predict Price")
+
+if submitted:
+    payload = {
+        "year": int(year),
+        "mileage": int(mileage),
+        "tax": int(tax),
+        "mpg": float(mpg),
+        "engineSize": float(engine_size),
+        "model": model,
+        "transmission": transmission,
+        "fuelType": fuel_type,
+    }
+
+    predict_url = f"{backend_url.rstrip('/')}/predict"
+
+    with st.spinner("Requesting prediction from backend..."):
+        try:
+            response = requests.post(predict_url, json=payload, timeout=15)
+            data = response.json()
+
+            st.write("### API Response")
+
+            if response.status_code == 200 and data.get("message") == "Success":
+                st.success("Prediction successful")
+                price = data.get("price")
+                model_version = data.get("model_version", "N/A")
+
+                if price is not None:
+                    st.metric("Predicted Price", f"{price:,.2f}")
+                st.write(f"Model version: `{model_version}`")
+            else:
+                st.error(data.get("message", "Request failed"))
+                if "error" in data:
+                    st.code(data["error"])
+
+            with st.expander("Raw JSON"):
+                st.json(data)
+
+        except requests.RequestException as err:
+            st.error("Could not complete prediction request")
+            st.code(str(err))
+        except ValueError:
+            st.error("Backend returned a non-JSON response")
+            st.code(response.text if "response" in locals() else "No response body")
