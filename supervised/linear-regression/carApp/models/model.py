@@ -29,8 +29,8 @@ def predict_price(input_data: Input) -> float:
 
     df = pd.DataFrame(data, index=[0])
     pred = model.predict(df)[0]
-    pred = max(pred, 0)
-    return pred
+    # pred = max(pred, 0)
+    return abs(pred)
 
 
 def get_model_version() -> str:
