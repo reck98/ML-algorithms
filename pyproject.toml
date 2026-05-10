@@ -12,6 +12,7 @@ dependencies = [
     "jupyterlab-widgets>=3.0.16",
     "kagglehub>=1.0.0",
     "matplotlib>=3.10.8",
+    "nltk>=3.9.4",
     "numpy>=2.4.3",
     "pandas<3",
     "pydantic>=2.12.5",
